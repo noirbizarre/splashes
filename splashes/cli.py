@@ -68,21 +68,25 @@ class ClickFormatter(logging.Formatter):
         fmt = fmt or '%(prefix)s %(message)s'
         super().__init__(fmt=fmt, datefmt=datefmt)
 
+    def format_multiline(self, value, color):
+        value = value.replace('\n', '\n{0} '.format(color('│')))
+        # replace last by a folding char
+        value = '╰'.join(value.rsplit('│', 1))
+        return value
+
     def format(self, record):
         '''Customize the line prefix and indent multiline logs'''
         level_color = self.LEVEL_COLORS.get(record.levelname, white)
         std_prefix = '{0}:'.format(record.levelname)
         prefix = self.LEVEL_PREFIXES.get(record.levelname, std_prefix) if is_tty() else std_prefix
         record.__dict__['prefix'] = level_color(prefix)
-        record.msg = record.msg.replace('\n', '\n{0} '.format(level_color('│')))
-        # replace last by a folding char
-        record.msg = '╰'.join(record.msg.rsplit('│', 1))
+        record.msg = self.format_multiline(record.msg, level_color)
         return super().format(record)
 
     def formatException(self, ei):
         '''Indent traceback info for better readability'''
         out = super().formatException(ei)
-        out = str('\n').join(str('  | ') + line for line in out.splitlines())
+        out = red('│') + self.format_multiline(out, red)
         return out
 
 
