@@ -1,3 +1,5 @@
+import logging
+
 from datetime import datetime
 
 from elasticsearch import Elasticsearch
@@ -6,6 +8,9 @@ from elasticsearch_dsl import analyzer, tokenizer, token_filter, Index as ESInde
 
 from elasticsearch_dsl import DocType, Text, Keyword, Date, Nested, Boolean, \
     analyzer, InnerObjectWrapper, Completion, Object, GeoPoint
+
+
+log = logging.getLogger(__name__)
 
 
 # Deal with French specific aspects.
@@ -46,12 +51,40 @@ class Index(ESIndex):
             'filter': {f._name: f.get_definition() for f in filters},
         }
 
+
+#: Maps raw csv fields to document fields
+MAPPING = {
+    'siren': 'SIREN',
+    'nic': 'NIC',
+    'name': 'NOMEN_LONG',
+    'region': 'RPET',
+    'departement': 'DEPET',
+    'categorie': 'CATEGORIE',
+}
+
+#: Maps raw csv date fields to document fields
+DATE_MAPPING = {
+    'activity_started': ('DDEBACT', '%Y%m%d'),
+    'last_insee_update': ('DATEMAJ', '%Y%m%d'),
+}
+
+
+def parse_date(value, fmt):
+    '''A failsafe date parser'''
+    try:
+        return datetime.strptime(value, fmt).date()
+    except Exception as e:
+        log.exception('Unable to parse date "%s": %s', value, e)
+        return None
+
+
 class Company(DocType):
     siret = Keyword()
     siren = Keyword()
     nic = Keyword()
     region = Keyword()
     departement = Keyword()
+    category = Keyword()
     location = GeoPoint()
 
     name = Text(analyzer=fr_analyzer, fields={
@@ -61,17 +94,35 @@ class Company(DocType):
     # Raw CSV values
     csv = Object()
 
-    # Tracking
+    # INSEE Tracking
+    creation_month = Date()
+    activity_started = Date()
+    last_insee_update = Date()
+
+    # Local Tracking
     last_update = Date()
 
     def save(self, **kwargs):
-        self.siret = self.siren + self.nic
+        # Bulk map raw fields
+        for key, field in MAPPING.items():
+            setattr(self, key, getattr(self.csv, field, None))
+
+        # Bulk map raw date fields
+        for key, (field, fmt) in DATE_MAPPING.items():
+            try:
+                date = parse_date(getattr(self.csv, field, None), fmt)
+            except ValueError:
+                continue
+            setattr(self, key, date)
+
+        # Set computed values
+        self.meta.id = self.siret = self.siren + self.nic
         self.last_update = datetime.now()
 
-        if self.csv.get('longitude') and self.csv.get('latitude'):
+        if getattr(self.csv, 'longitude', None) and getattr(self.csv, 'latitude', None):
             self.location = {
-                'lat': self.csv['latitude'],
-                'lon': self.csv['longitude']
+                'lat': self.csv.latitude,
+                'lon': self.csv.longitude
             }
 
         return super().save(**kwargs)
@@ -88,6 +139,13 @@ class ES(Elasticsearch):
         if not index.exists():
             index.create()
 
-    def save(self, company):
+    def save_company(self, data):
+        company = Company(csv=data)
         company.save(using=self)
         return company
+
+    def get_company(self, siret):
+        return Company.get(id=siret, using=self, index=self.config.index)
+
+    def search_companies(self):
+        return Company.search(using=self, index=self.config.index)

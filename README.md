@@ -172,6 +172,12 @@ both commands accept to optionnal parameters:
 **Note:** the fully dockerized methods requires the dataset to be present in the current directory
 (or any child directory) or to add the directory as a volume.
 
+The `load` can also load [geo-sirene][] data with the `--geo` parameter:
+
+```shell
+splashes load path/to/geo-sirene/data --geo -l 100000 -p 1000
+```
+
 ### Interactive shell
 
 This feature requires [IPython][]
@@ -186,6 +192,17 @@ You will land in IPython interactive shell with the following objects available:
 * `es`: an instaciated Elasticsearch connection
 * `Company`: the elasticsearch documents model class
 * `config`: the global `splashes` configuration
+
+```IPython
+# List PME names
+companies = es.search_companies().filter(type='PME').execute()
+for company in companies:
+    print(company.name)
+```
+
+The `search_companies()` methods returns a [Search object][]
+See the [Elasticsearch DSL][] documentation
+
 
 ## Elasticsearch and kibana plugins with docker
 
@@ -213,3 +230,5 @@ You can install extra Kibana plugins with:
 [es-install]: https://www.elastic.co/guide/en/elasticsearch/reference/5.0/install-elasticsearch.html
 [ICU Analysis Plugin]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-icu.html
 [IPython]: https://ipython.org/
+[Elasticsearch DSL]: https://elasticsearch-dsl.readthedocs.io/en/latest/search_dsl.html
+[Search object]: https://elasticsearch-dsl.readthedocs.io/en/latest/search_dsl.html#the-search-object
