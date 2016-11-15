@@ -55,6 +55,7 @@ class Loader(object):
     def process_stock_file(self, file, total, lines=None, progress=None, geo=False):
         log.info('Processing %s', file)
         processor = self.iter_geo_csv if geo else self.iter_insee_csv
+        i = 0
         for i, data in processor(file, lines, progress):
             self.es.save_company(data)
         total += i
