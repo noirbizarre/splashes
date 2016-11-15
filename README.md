@@ -204,7 +204,7 @@ You will land in IPython interactive shell with the following objects available:
 
 ```IPython
 # List PME names
-companies = es.search_companies().filter(type='PME').execute()
+companies = es.search_companies().filter(legal='SARL', category='PME').execute()
 for company in companies:
     print(company.name)
 ```
