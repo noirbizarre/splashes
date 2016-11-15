@@ -23,7 +23,7 @@ sysctl -w vm.max_map_count=262144
 sudo sysctl -w vm.max_map_count=262144
 ```
 
-More details in the [Elasticsearch Virtual Memory documentation section][vm-doc]
+More details in the [Elasticsearch Virtual Memory documentation section][es-vm-doc]
 and the [officiel docker details][es-docker-vm-doc]
 
 
@@ -33,30 +33,44 @@ For quick start, splashes provides a dockerized playground which
 we will use to get ready.
 
 You can use it in three ways:
-1. native Python 3.5 with native Elasticsearch 5.0
-2. native Python 3.5 with dockerized Elasticsearch/Kibana
-3. fully dockerized environment
 
-With **1** and **2**, you will install and use the `splashes` executable on host.
-With **2**, you will use the `./dc-splashes` helper.
+1. **Fully native:** native `splashes` on Python 3.5 with native Elasticsearch 5.0
+2. **Hybrid:** native `splashes` on Python 3.5 with dockerized Elasticsearch/Kibana
+3. **Fully dockerized:** fully dockerized environment
 
-For **2** and **3**, you can user the `./dc` helper for manipulating `docker-compose`.
+### Fully native
+
+Install [Elasticsearch][] using your favorite package manager or
+as described [on the official documentation][es-doc].
+
+Then, install the [ICU Analysis Plugin][] using the elasticsearch plugin manager:
+
+```
+$ELASTIC_HOME/bin/elasticsearch-plugin install analysis-icu
+```
+*(where `$ELASTIC_HOME` is the Elasticsearch installation directory)*
+
+Restart Elasticsearch and you can then install the python executable with:
+
+```shell
+pip install -e .
+splashes --help
+```
+
+### Hybrid
+
+In this configuration, you will use the provided [Elasticsearch][]/[Kibana][] docker stack
+with [Docker Compose][].
+A `./dc` executable helper is provided to manipulate `docker-compose`.
 Persistent data are stored into the `elasticsearch/data` directory.
 
-You can override docker-compose configuration with a `docker-compose.override.yml` file.
-
-
-### Docker dependencies
-
-The following command will pull required docker images, build the splashes docker image
-and launch all services to get ready:
-
+Start the Elastcisearch stack with
 ```shell
 ./dc up
 ```
 Then go grab a coffee because it can take some times on the first launch.
 
-This command use your current terminal, so if you want to launch everythin in the background
+This command use your current terminal, so if you want to launch everything in the background
 execute this command instead:
 
 ```shell
@@ -68,16 +82,49 @@ You can then access:
 - elasticsearch on <http://localhost:9200>
 - kibana on <http://localhost:5601>
 
-### Loading data
-
-As we are using elastic search, we need to get the files available into the current directory.
+Then install the `splashes` application:
 
 ```shell
-splashes load my-data.csv
+pip install -e .
+splashes --help
 ```
 
+**Note:** You can override docker-compose configuration with a `docker-compose.override.yml` file.
 
-### Commands
+### Fully dockerized
+
+This methods use the provided [Elasticsearch][]/[Kibana][] docker stack from the hybrid method
+plus a dockerized `splashes` application.
+You will use the `./dc-splashes` helper to manipulate both `docker-compose` and `splashes`.
+
+You can download and/or build docker images and get the services up and ready with:
+
+```shell
+./dc-splashes up
+```
+
+This command use your current terminal, so if you want to launch everything in the background
+execute this command instead:
+
+```shell
+./dc-splashes up -d
+```
+
+You can then access:
+
+- elasticsearch on <http://localhost:9200>
+- kibana on <http://localhost:5601>
+
+and you can use `splashes` with:
+
+```shell
+./dc-splashes --help
+```
+
+**Note:** You can override docker-compose configuration with a `docker-compose.override.yml` file.
+
+
+## Commands
 
 You can list all available commands using:
 
@@ -91,7 +138,47 @@ You can have help on each command using:
 splashes CMD --help
 ```
 
-## Elasticsearch and kibana plugins
+You can pass common otions be fore your command:
+
+```shell
+splashes --es http://elastic.somewhere.com --index splahes -v CMD
+```
+
+**Note:** By default, `splashes` expect Elasticsearch to be running on <http://localhost:9200>
+But you can specify another location with the `--es` parameter:
+
+
+### Loading data
+
+You can load stock data with:
+
+```shell
+splashes load my-data.csv
+```
+
+and daily updates with:
+
+```shell
+splashes update daily/updates/directory
+# or
+splashes update daily/updates/directory/file.csv
+```
+
+both commands accept to optionnal parameters:
+
+* `-l`/`--lines` to limit the amount of data loaded to X lines
+* `-p`/`--progress` to display progression indication every X lines
+
+**Note:** the fully dockerized methods requires the dataset to be present in the current directory
+(or any child directory) or to add the directory as a volume.
+
+### Interactive shell
+
+```shell
+splashes shell
+```
+
+## Elasticsearch and kibana plugins with docker
 
 You can install extra elasticsearch plugins with:
 
@@ -108,25 +195,11 @@ You can install extra Kibana plugins with:
 ./dc run kibana kibana-plugin install my-plugin
 ```
 
-## Native usage
-
-If you don't want to use Docker, you can use `splashes` like yo would for any python command line client.
-
-```shell
-pip install -e .
-splashes --help
-```
-
-By default, `splashes` expect Elasticsearch to be running on <http://localhost:9200>
-But you can specify another location with the `--es` parameter:
-
-```shell
-splashes --es http://somwhere.com:9200/ load myfile.csv
-```
-
-
 [Docker]: https://www.docker.com/
 [Docker Compose]: https://docs.docker.com/compose/
-[Elasticsearch]: https://www.elastic.co/
-[vm-doc]: https://www.elastic.co/guide/en/elasticsearch/reference/5.0/vm-max-map-count.html
+[Elasticsearch]: https://www.elastic.co/products/elasticsearch
+[Kibana]: https://www.elastic.co/products/kibana
+[es-vm-doc]: https://www.elastic.co/guide/en/elasticsearch/reference/5.0/vm-max-map-count.html
 [es-docker-vm-doc]: https://github.com/elastic/elasticsearch-docker#user-content-host-prerequisites
+[es-install]: https://www.elastic.co/guide/en/elasticsearch/reference/5.0/install-elasticsearch.html
+[ICU Analysis Plugin]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-icu.html
