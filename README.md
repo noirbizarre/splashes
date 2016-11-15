@@ -174,9 +174,18 @@ both commands accept to optionnal parameters:
 
 ### Interactive shell
 
+This feature requires [IPython][]
+
 ```shell
-splashes shell
+pip install ipython
+splashes --es http://my.elasticsearch:9200 shell
 ```
+
+You will land in IPython interactive shell with the following objects available:
+
+* `es`: an instaciated Elasticsearch connection
+* `Company`: the elasticsearch documents model class
+* `config`: the global `splashes` configuration
 
 ## Elasticsearch and kibana plugins with docker
 
@@ -203,3 +212,4 @@ You can install extra Kibana plugins with:
 [es-docker-vm-doc]: https://github.com/elastic/elasticsearch-docker#user-content-host-prerequisites
 [es-install]: https://www.elastic.co/guide/en/elasticsearch/reference/5.0/install-elasticsearch.html
 [ICU Analysis Plugin]: https://www.elastic.co/guide/en/elasticsearch/plugins/current/analysis-icu.html
+[IPython]: https://ipython.org/

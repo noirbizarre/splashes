@@ -111,11 +111,12 @@ def cli(ctx, **kwargs):
 @click.argument('path', type=click.Path(exists=True))
 @click.option('-l', '--lines', type=int, help='Limit the amount of lines loaded')
 @click.option('-p', '--progress', type=int, help='Show progress every X lines')
+@click.option('-g', '--geo', is_flag=True, help='Process the geo-sirene files')
 @click.pass_obj
-def load(config, path, lines=None, progress=None):
+def load(config, path, lines=None, progress=None, geo=False):
     '''Load data from a stock CSV file(s)'''
     loader = Loader(config)
-    loader.load(path, lines=lines, progress=progress)
+    loader.load(path, lines=lines, progress=progress, geo=geo)
     click.echo(green(OK) + white(' Done'))
 
 

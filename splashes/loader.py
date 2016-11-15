@@ -4,18 +4,9 @@ import logging
 from collections import Counter
 from pathlib import Path
 
-from .database import ES, Company
+from .database import ES
 
 log = logging.getLogger(__name__)
-
-#: Maps csv fields to kwargs
-MAPPING = {
-    'siren': 'SIREN',
-    'nic': 'NIC',
-    'name': 'NOMEN_LONG',
-    'region': 'RPET',
-    'departement': 'DEPET',
-}
 
 FILE_SUMMARY = '''
 Summary:
@@ -32,9 +23,9 @@ class Loader(object):
         self.config = config
         self.es = ES(config)
 
-    def iter_csv(self, path, lines=None, progress=None):
-        with path.open(encoding='cp1252') as csv_file:
-            for i, data in enumerate(csv.DictReader(csv_file, delimiter=';')):
+    def iter_csv(self, path, lines=None, progress=None, encoding='cp1252', delimiter=';'):
+        with path.open(encoding=encoding) as csv_file:
+            for i, data in enumerate(csv.DictReader(csv_file, delimiter=delimiter)):
                 if i and progress and not i % progress:
                     log.info('%d lines loaded', i)
 
@@ -43,22 +34,29 @@ class Loader(object):
 
                 yield i, data
 
-    def load(self, filename, lines=None, progress=None):
+    def iter_insee_csv(self, path, lines=None, progress=None):
+        return self.iter_csv(path, lines, progress)
+
+    def iter_geo_csv(self, path, lines=None, progress=None):
+        return self.iter_csv(path, lines, progress, encoding='utf-8', delimiter=',')
+
+    def load(self, filename, lines=None, progress=None, geo=False):
         log.info('Loading stock data from  %s', filename)
         path = Path(filename)
         total = 0
         if path.is_dir():
             log.info('Loading data from %s directory', path)
             for file in path.glob('*.csv'):
-                total += self.process_stock_file(file, total, lines, progress)
+                total += self.process_stock_file(file, total, lines, progress, geo)
         else:
             total += self.process_stock_file(path, total, lines, progress)
         log.info('%d items loaded with success', total)
 
-    def process_stock_file(self, file, total, lines=None, progress=None):
+    def process_stock_file(self, file, total, lines=None, progress=None, geo=False):
         log.info('Processing %s', file)
-        for i, data in self.iter_csv(file, lines, progress):
-            self.save_company(data)
+        processor = self.iter_geo_csv if geo else self.iter_insee_csv
+        for i, data in processor(file, lines, progress):
+            self.es.save_company(data)
         total += i
         log.info('%d items loaded with from file', i)
         return i
@@ -84,7 +82,7 @@ class Loader(object):
 
     def process_update_file(self, file, counter, lines=None, progress=None):
         log.info('Processing %s', file)
-        for i, data in self.iter_csv(file, lines, progress):
+        for i, data in self.iter_insee_csv(file, lines, progress):
             vmaj = data['VMAJ']
             is_creation = vmaj == 'C'
             is_update_old = vmaj == 'I'
@@ -114,13 +112,6 @@ class Loader(object):
                 log.error('Update type not supported: "%s"', vmaj)
                 continue
 
-            self.save_company(data)
+            self.es.save_company(data)
         counter['total'] += i
         log.info(FILE_SUMMARY, counter)
-
-    def save_company(self, data):
-        company = Company(
-            csv=data,
-            **{key: data.get(field) for key, field in MAPPING.items()}
-        )
-        return self.es.save(company)
