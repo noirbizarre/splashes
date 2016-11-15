@@ -138,14 +138,23 @@ You can have help on each command using:
 splashes CMD --help
 ```
 
-You can pass common otions be fore your command:
+You can pass common options before your command:
 
 ```shell
 splashes --es http://elastic.somewhere.com --index splahes -v CMD
 ```
 
-**Note:** By default, `splashes` expect Elasticsearch to be running on <http://localhost:9200>
-But you can specify another location with the `--es` parameter:
+Options are:
+
+* **-es**/**--elasticsearch**: The Elasticsearch URL, defaults to <http://localhost:9200>
+* **-i**/**--index**: The Elasticsearch index, defaults to `sirene`
+* **-v**/**--verbose**: More verbose output
+
+You can also use environment variables:
+
+* `SPLASHES_ELASTICSEARCH`
+* `SPLASHES_INDEX`
+* `SPLASHES_VERBOSE`
 
 
 ### Loading data
