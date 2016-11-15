@@ -7,7 +7,7 @@ from elasticsearch_dsl import analyzer, tokenizer, token_filter, Index as ESInde
 
 
 from elasticsearch_dsl import DocType, Text, Keyword, Date, Nested, Boolean, \
-    analyzer, InnerObjectWrapper, Completion, Object, GeoPoint
+    analyzer, InnerObjectWrapper, Completion, Object, GeoPoint, Integer
 
 
 log = logging.getLogger(__name__)
@@ -57,20 +57,28 @@ MAPPING = {
     'siren': 'SIREN',
     'nic': 'NIC',
     'name': 'NOMEN_LONG',
+    'categorie': 'CATEGORIE',
+    'legal': 'NJ',
+    'ape': 'APEN700',
     'region': 'RPET',
     'departement': 'DEPET',
-    'categorie': 'CATEGORIE',
+    'workforce': 'EFENCENT',
+    'workforce_block': 'TEFEN',
 }
 
 #: Maps raw csv date fields to document fields
 DATE_MAPPING = {
     'activity_started': ('DDEBACT', '%Y%m%d'),
     'last_insee_update': ('DATEMAJ', '%Y%m%d'),
+    'created_at_month': ('DCREN', '%Y%m'),
+    'workforce_valid_at': ('DEFEN', '%Y'),
 }
 
 
 def parse_date(value, fmt):
     '''A failsafe date parser'''
+    if not value:
+        return None
     try:
         return datetime.strptime(value, fmt).date()
     except Exception as e:
@@ -82,9 +90,13 @@ class Company(DocType):
     siret = Keyword()
     siren = Keyword()
     nic = Keyword()
+    category = Keyword()
+    legal = Keyword()
+    ape = Keyword()
     region = Keyword()
     departement = Keyword()
-    category = Keyword()
+    workforce = Integer()
+    workforce_block = Keyword()
     location = GeoPoint()
 
     name = Text(analyzer=fr_analyzer, fields={
@@ -95,9 +107,10 @@ class Company(DocType):
     csv = Object()
 
     # INSEE Tracking
-    creation_month = Date()
+    created_at_month = Date()
     activity_started = Date()
     last_insee_update = Date()
+    workforce_valid_at = Date()
 
     # Local Tracking
     last_update = Date()
