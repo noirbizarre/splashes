@@ -41,7 +41,7 @@ You can use it in three ways:
 ### Fully native
 
 Install [Elasticsearch][] using your favorite package manager or
-as described [on the official documentation][es-doc].
+as described [on the official documentation][es-install].
 
 Then, install the [ICU Analysis Plugin][] using the elasticsearch plugin manager:
 
@@ -232,3 +232,4 @@ You can install extra Kibana plugins with:
 [IPython]: https://ipython.org/
 [Elasticsearch DSL]: https://elasticsearch-dsl.readthedocs.io/en/latest/search_dsl.html
 [Search object]: https://elasticsearch-dsl.readthedocs.io/en/latest/search_dsl.html#the-search-object
+[geo-sirene]: https://github.com/cquest/geocodage-sirene
