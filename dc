@@ -1,0 +1,12 @@
+#!/bin/bash
+
+PROJECT="splashes"
+BASEDIR=`dirname "$(realpath -s $0)"`
+export BASEDIR
+FILES="-f ${BASEDIR}/docker-compose.yml"
+if [ -f $BASEDIR/docker-compose.override.yml ]
+then
+    FILES="${FILES} -f ${BASEDIR}/docker-compose.override.yml"
+fi
+
+docker-compose -p $PROJECT $FILES "$@"

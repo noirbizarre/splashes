@@ -1,0 +1,8 @@
+# Ignore hidden files
+.*
+
+# Ignore build assets
+__pycache__
+
+# Ignore docker's data
+data

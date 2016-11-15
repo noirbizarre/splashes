@@ -1,0 +1,21 @@
+#!/bin/bash
+
+PROJECT='splashes'
+BASEDIR=`dirname "$(realpath -s $0)"`
+export BASEDIR
+FILES="-f ${BASEDIR}/docker-compose.yml -f ${BASEDIR}/docker-compose.splashes.yml"
+if [ -f $BASEDIR/docker-compose.override.yml ]; then
+    FILES="${FILES} -f ${BASEDIR}/docker-compose.override.yml"
+fi
+
+CMD="docker-compose -p $PROJECT $FILES"
+
+case $1 in
+    # Forward docker-compose commands
+    build|config|create|down|exec|help|kill|logs|pause|port|ps|pull|restart|rm|run|scale|start|stop|unpause|up)
+        $CMD "$@"
+        ;;
+    *)
+        $CMD run --rm splashes "$@"
+        ;;
+esac

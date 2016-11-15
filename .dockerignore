@@ -1,0 +1,16 @@
+# Ignore hidden files
+.*
+
+# Ignore build assets
+__pycache__
+
+# Ignore docker's data
+data
+
+# Ignore elasticsearch docker directory
+elasticsearch
+
+# Ignore setuptools assets
+dist
+build
+*.egg-info
