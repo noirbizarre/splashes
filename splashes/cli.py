@@ -147,6 +147,17 @@ def info(config):
 
 @cli.command()
 @click.pass_obj
+@click.argument('specs', type=click.Path(exists=True))
+@click.option('-f', '--force', is_flag=True,
+              help='Update all documents (even those already having values)')
+def denormalize(config, specs, force=False):
+    '''Perform a denormalization (ie. import labels)'''
+    loader = Loader(config)
+    loader.denormalize(specs, force=force)
+
+
+@cli.command()
+@click.pass_obj
 def shell(config):
     '''Launch an interactive sheel (requires iPython)'''
     try:

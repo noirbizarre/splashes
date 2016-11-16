@@ -1,10 +1,13 @@
+import configparser
 import csv
 import logging
+import os
 
 from collections import Counter
 from pathlib import Path
 
 from .database import ES
+from .utils import ObjectDict
 
 log = logging.getLogger(__name__)
 
@@ -117,3 +120,16 @@ class Loader(object):
             self.es.save_company(data)
         counter['total'] += i
         log.info(FILE_SUMMARY, counter)
+
+    def denormalize(self, filename, force=False):
+        specs = configparser.ConfigParser()
+        specs.read(filename)
+        dirname = os.path.dirname(filename)
+        for field in specs.sections():
+            definition = ObjectDict(specs.items(field))
+            mapping_path = Path(os.path.join(dirname, definition.file))
+            mapping = dict(
+                (row[definition.key], row[definition.value])
+                for _, row in self.iter_geo_csv(mapping_path)
+            )
+            self.es.denormalize(definition.field, field, mapping, force=force)

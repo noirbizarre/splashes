@@ -6,8 +6,10 @@ from elasticsearch import Elasticsearch
 from elasticsearch_dsl import analyzer, tokenizer, token_filter, Index as ESIndex
 
 
-from elasticsearch_dsl import DocType, Text, Keyword, Date, Nested, Boolean, \
-    analyzer, InnerObjectWrapper, Completion, Object, GeoPoint, Integer
+from elasticsearch_dsl import (
+    DocType, Text, Keyword, Date, Boolean, Object, GeoPoint, Integer,
+    analyzer, InnerObjectWrapper, Q
+)
 
 
 log = logging.getLogger(__name__)
@@ -71,7 +73,7 @@ MAPPING = {
     'rna': 'RNA'
 }
 
-#: Maps raw csv date fields to document fields
+#: Maps raw csv fields to document date fields
 DATE_MAPPING = {
     'activity_started': ('DDEBACT', '%Y%m%d'),
     'last_insee_update': ('DATEMAJ', '%Y%m%d'),
@@ -79,13 +81,24 @@ DATE_MAPPING = {
     'workforce_valid_at': ('DEFEN', '%Y'),
 }
 
+#: Maps raw csv fields to document boolean fields
 BOOLEAN_MAPPING = {
     'seasonal': 'SAISONAT',
 }
 
+#: Maps raw csv fields to document integer fields
 INTEGER_MAPPING = {
     'workforce': 'EFENCENT',
 }
+
+#: For response fields details see:
+#: See https://www.elastic.co/guide/en/elasticsearch/reference/5.0/\
+#:      docs-update-by-query.html#docs-update-by-query-response-body
+DENORMALIZE_SUMMARY = '''
+Summary:
+✎ Updated: %(updated)d companies
+⏱ Duration: %(took)d ms
+'''.strip()
 
 
 def parse_date(value, fmt):
@@ -221,12 +234,53 @@ class ES(Elasticsearch):
             index.create()
 
     def save_company(self, data):
+        '''Save a company from its raw CSV data'''
         company = Company(csv=data)
         company.save(using=self)
         return company
 
     def get_company(self, siret):
+        '''Get a company from its SIRET'''
         return Company.get(id=siret, using=self, index=self.config.index)
 
     def search_companies(self):
+        '''Get a Search object for companies'''
         return Company.search(using=self, index=self.config.index)
+
+    def denormalize(self, field, target_field, mapping, force=False):
+        '''
+        Perform denormalization on fields
+
+        If you loaded data without labels, it allows to load them afterward.
+        '''
+        log.info('Denormalizing field %s into %s', field, target_field)
+        if force:
+            query = Q('match_all')
+        else:
+            query = ~Q('exists', field=target_field)
+        body = {
+            'query': query.to_dict(),
+            'script': {
+                'lang': 'painless',  # Default in ES5 but can be overriden by configuration
+                'inline': 'ctx._source.csv[params.target] = params.mapping[ctx._source.csv[params.field]]',
+                'params': {
+                    'field': field,
+                    'target': target_field,
+                    'mapping': mapping,
+                }
+            },
+        }
+        # Compute timeout from count
+        timeout = self.search_companies().query(query).count()
+        result = self.update_by_query(
+            index=self.config.index,
+            doc_type=Company._doc_type.name,
+            body=body,
+            request_timeout=timeout
+        )
+        if result['failures']:
+            log.error('Denormalization failed')
+            for failure in result['failures']:
+                log.error(failure)  # TODO: proper failure processing
+        else:
+            log.info(DENORMALIZE_SUMMARY, result)
