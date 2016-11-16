@@ -1,0 +1,3 @@
+#!/bin/bash
+./dc run elasticsearch rm -fr /usr/share/elasticsearch/data/nodes
+./dc rm --force
