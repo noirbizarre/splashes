@@ -109,7 +109,7 @@ def parse_boolean(value):
 
 def parse_int(value):
     '''a failsafe integer parser'''
-    if not value:
+    if not value or value == 'NN':
         return None
     elif isinstance(value, int):
         return value
