@@ -1,6 +1,6 @@
 import logging
 
-from datetime import datetime
+from datetime import datetime, date
 
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import analyzer, tokenizer, token_filter, Index as ESIndex
@@ -57,13 +57,18 @@ MAPPING = {
     'siren': 'SIREN',
     'nic': 'NIC',
     'name': 'NOMEN_LONG',
+    'headquarter': 'SIEGE',
+    'sign': 'ENSEIGNE',
     'categorie': 'CATEGORIE',
     'legal': 'NJ',
     'ape': 'APEN700',
     'region': 'RPET',
     'departement': 'DEPET',
-    'workforce': 'EFENCENT',
+    'epci': 'EPCI',
     'workforce_block': 'TEFEN',
+    'headquarter_region': 'RPEN',
+    'shop_type': 'ACTISURF',
+    'rna': 'RNA'
 }
 
 #: Maps raw csv date fields to document fields
@@ -74,16 +79,51 @@ DATE_MAPPING = {
     'workforce_valid_at': ('DEFEN', '%Y'),
 }
 
+BOOLEAN_MAPPING = {
+    'seasonal': 'SAISONAT',
+}
+
+INTEGER_MAPPING = {
+    'workforce': 'EFENCENT',
+}
+
 
 def parse_date(value, fmt):
     '''A failsafe date parser'''
     if not value:
         return None
+    elif isinstance(value, (date, datetime)):
+        return value
     try:
         return datetime.strptime(value, fmt).date()
     except Exception as e:
         log.exception('Unable to parse date "%s": %s', value, e)
         return None
+
+
+def parse_boolean(value):
+    '''a failsafe boolean parser'''
+    # TODO: need implementation
+    return value
+
+
+def parse_int(value):
+    '''a failsafe integer parser'''
+    if not value:
+        return None
+    elif isinstance(value, int):
+        return value
+    try:
+        return int(value)
+    except Exception as e:
+        log.exception('Unable to parse integer "%s": %s', value, e)
+        return None
+
+
+class Csv(InnerObjectWrapper):
+    def get(self, name):
+        '''Dict-like for easier extraction'''
+        return getattr(self, name, None)
 
 
 class Company(DocType):
@@ -95,16 +135,32 @@ class Company(DocType):
     ape = Keyword()
     region = Keyword()
     departement = Keyword()
+    epci = Keyword()
     workforce = Integer()
     workforce_block = Keyword()
+    headquarter_region = Keyword()
+    shop_type = Keyword()
+    rna = Keyword()
+
+    seasonal = Keyword()
+
+    # optionnal geolocation
     location = GeoPoint()
 
     name = Text(analyzer=fr_analyzer, fields={
         'raw': Keyword()
     })
 
+    headquarter = Text(analyzer=fr_analyzer, fields={
+        'raw': Keyword()
+    })
+
+    sign = Text(analyzer=fr_analyzer, fields={
+        'raw': Keyword()
+    })
+
     # Raw CSV values
-    csv = Object()
+    csv = Object(doc_class=Csv)
 
     # INSEE Tracking
     created_at_month = Date()
@@ -118,25 +174,37 @@ class Company(DocType):
     def save(self, **kwargs):
         # Bulk map raw fields
         for key, field in MAPPING.items():
-            setattr(self, key, getattr(self.csv, field, None))
+            setattr(self, key, self.csv.get(field))
 
         # Bulk map raw date fields
         for key, (field, fmt) in DATE_MAPPING.items():
             try:
-                date = parse_date(getattr(self.csv, field, None), fmt)
+                date = parse_date(self.csv.get(field), fmt)
             except ValueError:
                 continue
             setattr(self, key, date)
+
+        for key, field in INTEGER_MAPPING.items():
+            try:
+                value = parse_int(self.csv.get(field))
+            except ValueError:
+                continue
+            setattr(self, key, value)
+
+        # Bulk map raw boolean fields
+        for key, field in BOOLEAN_MAPPING.items():
+            try:
+                value = parse_boolean(self.csv.get(field))
+            except ValueError:
+                continue
+            setattr(self, key, value)
 
         # Set computed values
         self.meta.id = self.siret = self.siren + self.nic
         self.last_update = datetime.now()
 
-        if getattr(self.csv, 'longitude', None) and getattr(self.csv, 'latitude', None):
-            self.location = {
-                'lat': self.csv.latitude,
-                'lon': self.csv.longitude
-            }
+        if self.csv.get('longitude') and self.csv.get('latitude'):
+            self.location = '{0},{1}'.format(self.csv.latitude, self.csv.longitude)
 
         return super().save(**kwargs)
 

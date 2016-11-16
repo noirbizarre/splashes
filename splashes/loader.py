@@ -46,8 +46,9 @@ class Loader(object):
         total = 0
         if path.is_dir():
             log.info('Loading data from %s directory', path)
-            for file in path.glob('*.csv'):
+            for i, file in enumerate(path.glob('*.csv')):
                 total += self.process_stock_file(file, total, lines, progress, geo)
+                log.debug('%d file processed', i)
         else:
             total += self.process_stock_file(path, total, lines, progress)
         log.info('%d items loaded with success', total)
